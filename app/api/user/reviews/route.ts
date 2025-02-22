@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       sql: `
         SELECT 
           r.id,
+          r.user_id,
           r.build_quality,
           r.material_quality,
           r.bathrooms,

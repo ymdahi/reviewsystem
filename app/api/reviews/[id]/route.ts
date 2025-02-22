@@ -1,59 +1,78 @@
 import { NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 import { db } from '@/lib/db';
+import { JWT_SECRET } from '@/lib/constants';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // First get the review data
-    const reviewResult = await db.execute({
-      sql: `
-        SELECT 
-          r.id,
-          r.builder_id,
-          r.build_quality,
-          r.material_quality,
-          r.bathrooms,
-          r.bedrooms,
-          r.kitchen,
-          r.exterior,
-          r.windows_doors,
-          r.electrical,
-          r.plumbing,
-          r.overall_comment,
-          r.created_at,
-          b.name as builder_name,
-          b.logo as builder_logo
-        FROM reviews r
-        JOIN builders b ON r.builder_id = b.id
-        WHERE r.id = ?
-      `,
-      args: [params.id],
-    });
-
-    if (reviewResult.rows.length === 0) {
-      return Response.json({ error: 'Review not found' }, { status: 404 });
+    // Verify authentication
+    const token = cookies().get('token')?.value;
+    if (!token) {
+      return Response.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
     }
 
-    // Then get the review images
-    const imagesResult = await db.execute({
+    const { payload } = await jwtVerify(
+      token,
+      new TextEncoder().encode(JWT_SECRET)
+    );
+
+    if (!payload.id) {
+      return Response.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    // Get review with builder information and images
+    const result = await db.execute({
       sql: `
-        SELECT url
-        FROM images
-        WHERE review_id = ?
-        ORDER BY created_at ASC
+        SELECT 
+          r.*,
+          b.name as builder_name,
+          b.logo as builder_logo,
+          GROUP_CONCAT(i.url) as image_urls
+        FROM reviews r
+        JOIN builders b ON r.builder_id = b.id
+        LEFT JOIN images i ON r.id = i.review_id
+        WHERE r.id = ?
+        GROUP BY r.id
       `,
       args: [params.id],
     });
 
-    // Combine the data
-    const review = reviewResult.rows[0];
-    review.images = imagesResult.rows.map(row => row.url);
+    const review = result.rows[0];
 
-    return Response.json({ review });
+    if (!review) {
+      return Response.json(
+        { error: 'Review not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is authorized to view/edit this review
+    if (review.user_id !== payload.id && payload.role !== 'ADMIN') {
+      return Response.json(
+        { error: 'Not authorized to view this review' },
+        { status: 403 }
+      );
+    }
+
+    // Format the review data
+    const formattedReview = {
+      ...review,
+      images: review.image_urls ? review.image_urls.split(',') : [],
+    };
+
+    return Response.json({ review: formattedReview });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error fetching review:', error);
     return Response.json(
       { error: 'Failed to fetch review' },
       { status: 500 }

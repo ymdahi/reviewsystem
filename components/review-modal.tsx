@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Star, Building2, MapPin, Globe, Phone, Mail, Check, X, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import {
   Dialog,
@@ -12,9 +13,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { toBuilderSlug } from '@/lib/utils';
 
+interface User {
+  id: string;
+  email: string;
+  role: string;
+}
+
 interface ReviewModalProps {
   review: {
     id: string;
+    user_id: string;
     build_quality: number;
     material_quality: number;
     bathrooms: number;
@@ -55,6 +63,23 @@ export function ReviewModal({ review, onClose }: ReviewModalProps) {
   if (!review) return null;
 
   const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUser(data.user);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    }
+    fetchUser();
+  }, []);
 
   const calculateAverageRating = () => {
     return (
@@ -203,19 +228,26 @@ export function ReviewModal({ review, onClose }: ReviewModalProps) {
           )}
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              onClose();
-              router.push(`/reviews/${review.id}/edit`);
-            }}
-            className="flex items-center gap-2"
-          >
-            <Pencil className="h-4 w-4" />
-            Edit Review
-          </Button>
+        <DialogFooter className="flex justify-between items-center">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Close
+            </Button>
+            {currentUser && review && (currentUser.id === review.user_id || currentUser.role === 'ADMIN') && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  router.push(`/reviews/${review.id}/edit`);
+                }}
+                className="flex items-center gap-2"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit Review
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
