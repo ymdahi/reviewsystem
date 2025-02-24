@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Star, X, Upload } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { ReviewForm } from '@/components/review-form';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,94 +18,43 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-interface ReviewData {
+interface Review {
   id: string;
-  builder_id: string;
-  builder_name: string;
-  builder_logo: string | null;
-  build_quality: number;
-  material_quality: number;
-  bathrooms: number;
-  bedrooms: number;
-  kitchen: number;
-  exterior: number;
-  windows_doors: number;
-  electrical: number;
-  plumbing: number;
-  overall_comment: string;
+  builderId: string;
+  builderName: string;
+  builderLogo: string | null;
   images: string[];
+  [key: string]: any;
 }
 
-interface PageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default function EditReviewPage({ params }: PageProps) {
+export default function EditReviewPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [review, setReview] = useState<ReviewData | null>(null);
-  const [ratings, setRatings] = useState({
-    build_quality: 0,
-    material_quality: 0,
-    bathrooms: 0,
-    bedrooms: 0,
-    kitchen: 0,
-    exterior: 0,
-    windows_doors: 0,
-    electrical: 0,
-    plumbing: 0,
-  });
-  const [comment, setComment] = useState('');
+  const [error, setError] = useState('');
+  const [review, setReview] = useState<Review | null>(null);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<{ [key: number]: number }>({});
 
   useEffect(() => {
     async function fetchReview() {
       try {
         const response = await fetch(`/api/reviews/${params.id}`);
-        if (response.status === 401) {
-          router.push('/auth/login');
-          return;
-        }
-        if (response.status === 403) {
-          router.push('/dashboard');
-          return;
-        }
         if (!response.ok) {
+          if (response.status === 404) {
+            router.push('/404');
+            return;
+          }
           throw new Error('Failed to fetch review');
         }
-
         const data = await response.json();
-        console.log('Fetched review data:', data);
-        
-        if (!data.review) {
-          throw new Error('Review data is missing');
-        }
-
         setReview(data.review);
-        setRatings({
-          build_quality: data.review.build_quality,
-          material_quality: data.review.material_quality,
-          bathrooms: data.review.bathrooms,
-          bedrooms: data.review.bedrooms,
-          kitchen: data.review.kitchen,
-          exterior: data.review.exterior,
-          windows_doors: data.review.windows_doors,
-          electrical: data.review.electrical,
-          plumbing: data.review.plumbing,
-        });
-        setComment(data.review.overall_comment);
         setExistingImages(Array.isArray(data.review.images) ? data.review.images : []);
       } catch (error) {
-        console.error('Error fetching review:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch review');
-        router.push('/dashboard');
+        console.error('Error:', error);
+        setError('Failed to load review');
       } finally {
         setIsLoading(false);
       }
@@ -115,114 +63,81 @@ export default function EditReviewPage({ params }: PageProps) {
     fetchReview();
   }, [params.id, router]);
 
-  const handleRatingChange = (category: string, value: number) => {
-    setRatings((prev) => ({
-      ...prev,
-      [category]: value,
-    }));
-  };
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const newFiles = Array.from(files);
-    if (existingImages.length + newPhotos.length + newFiles.length > 5) {
-      setError('Maximum 5 photos allowed');
-      return;
-    }
-
-    // Check file sizes
-    for (const file of newFiles) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Each photo must be under 5MB');
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      if (existingImages.length + newPhotos.length + files.length > 5) {
+        setError('Maximum 5 photos allowed');
         return;
       }
-    }
 
-    setNewPhotos((prev) => [...prev, ...newFiles]);
-    setError('');
-  };
-
-  const removeExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeNewPhoto = (index: number) => {
-    setNewPhotos((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const uploadPhoto = async (file: File, builderId: string): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('builderId', builderId);
-
-    const response = await fetch('/api/uploads', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload photo');
-    }
-
-    const data = await response.json();
-    return data.path;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!review) return;
-
-    setIsSaving(true);
-    setError('');
-
-    try {
-      // Upload new photos
-      const uploadedPhotos: string[] = [];
-      for (let i = 0; i < newPhotos.length; i++) {
-        try {
-          setUploadProgress(prev => ({ ...prev, [i]: 0 }));
-          const path = await uploadPhoto(newPhotos[i], review.builder_id);
-          if (path) {
-            uploadedPhotos.push(path);
-          }
-          setUploadProgress(prev => ({ ...prev, [i]: 100 }));
-        } catch (error) {
-          console.error('Error uploading photo:', error);
-          setError('Failed to upload one or more photos');
-          setIsSaving(false);
+      // Check file sizes
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          setError('Each photo must be under 5MB');
           return;
         }
       }
 
-      // Combine existing and new photos, filtering out any empty values
-      const allPhotos = [...existingImages, ...uploadedPhotos].filter(url => url && url.trim());
+      setNewPhotos(prev => [...prev, ...files]);
+      setError('');
+    }
+  };
 
-      console.log('Saving review with photos:', allPhotos);
+  const removeExistingImage = (index: number) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
+  };
 
-      // Update review
-      const response = await fetch(`/api/reviews/${params.id}`, {
+  const removeNewPhoto = (index: number) => {
+    setNewPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (reviewData: Record<string, any>) => {
+    setIsSaving(true);
+    setError('');
+
+    try {
+      // First update the review data
+      const reviewResponse = await fetch(`/api/reviews/${params.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...ratings,
-          overall_comment: comment,
-          images: allPhotos,
+          ...reviewData,
+          images: existingImages
         }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update review');
+      if (!reviewResponse.ok) {
+        throw new Error('Failed to update review');
       }
 
-      router.push('/dashboard');
+      // Then upload any new photos
+      if (newPhotos.length > 0) {
+        for (let i = 0; i < newPhotos.length; i++) {
+          const formData = new FormData();
+          formData.append('photo', newPhotos[i]);
+          formData.append('reviewId', params.id);
+
+          const uploadResponse = await fetch('/api/reviews/photos', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload photos');
+          }
+
+          setUploadProgress(prev => ({
+            ...prev,
+            [i]: 100
+          }));
+        }
+      }
+
+      router.push(`/reviews/${params.id}`);
     } catch (error) {
       console.error('Error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update review');
+      setError('Failed to update review');
     } finally {
       setIsSaving(false);
     }
@@ -238,14 +153,14 @@ export default function EditReviewPage({ params }: PageProps) {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete review');
+        throw new Error('Failed to delete review');
       }
 
       router.push('/dashboard');
     } catch (error) {
       console.error('Error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete review');
+      setError('Failed to delete review');
+    } finally {
       setIsDeleting(false);
     }
   };
@@ -272,30 +187,13 @@ export default function EditReviewPage({ params }: PageProps) {
     );
   }
 
-  const ratingCategories = [
-    { key: 'build_quality', label: 'Build Quality' },
-    { key: 'material_quality', label: 'Material Quality' },
-    { key: 'bathrooms', label: 'Bathrooms' },
-    { key: 'bedrooms', label: 'Bedrooms' },
-    { key: 'kitchen', label: 'Kitchen' },
-    { key: 'exterior', label: 'Exterior' },
-    { key: 'windows_doors', label: 'Windows & Doors' },
-    { key: 'electrical', label: 'Electrical' },
-    { key: 'plumbing', label: 'Plumbing' },
-  ];
-
-  const totalPhotos = (existingImages || []).length + newPhotos.length;
-
-  // Calculate average rating
-  const averageRating = Object.values(ratings).reduce((sum, rating) => sum + rating, 0) / Object.values(ratings).length;
-  const displayRating = averageRating === 0 ? '-' : averageRating.toFixed(1);
-
+  const totalPhotos = existingImages.length + newPhotos.length;
 
   return (
     <div className="container max-w-2xl py-8">
       <h1 className="text-3xl font-bold mb-8">Edit Review</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form className="space-y-8">
         {/* Builder Info */}
         <Card>
           <CardHeader>
@@ -303,56 +201,27 @@ export default function EditReviewPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="p-4 border rounded-lg bg-gray-50">
-              <div className="font-medium">{review.builder_name}</div>
+              <div className="font-medium">{review.builderName}</div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Ratings */}
+        {/* Review Form */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Ratings</CardTitle>
-              <CardDescription>
-                Rate each category from 1 (poor) to 5 (excellent)
-              </CardDescription>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2">
-                <Star className="h-6 w-6 fill-yellow-400 text-yellow-400" />
-                <span className="text-2xl font-bold">{displayRating}</span>
-              </div>
-              <span className="text-sm text-gray-500">total score</span>
-            </div>
+          <CardHeader>
+            <CardTitle>Rating & Comments</CardTitle>
+            <CardDescription>
+              Update your ratings and feedback
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {ratingCategories.map(({ key, label }) => (
-                <div key={key} className="space-y-2">
-                  <Label>{label}</Label>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() =>
-                          handleRatingChange(key, value)
-                        }
-                        className="p-1 focus:outline-none"
-                      >
-                        <Star
-                          className={`h-6 w-6 ${
-                            value <= ratings[key as keyof typeof ratings]
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ReviewForm
+              initialValues={review}
+              onSubmit={handleSubmit}
+              isSubmitting={isSaving}
+              submitLabel="Save Changes"
+              showSubmitButton={false}
+            />
           </CardContent>
         </Card>
 
@@ -361,28 +230,27 @@ export default function EditReviewPage({ params }: PageProps) {
           <CardHeader>
             <CardTitle>Photos</CardTitle>
             <CardDescription>
-              Add photos of the builder's work (optional). Max 5MB per photo.
+              Add or remove photos of the builder's work. Max 5MB per photo.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {/* Existing Images */}
-                {(existingImages || []).map((image, index) => (
+                {existingImages.map((image, index) => (
                   <div
                     key={`existing-${index}`}
-                    className="relative aspect-square border rounded-lg overflow-hidden"
+                    className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={image}
                       alt={`Review photo ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="object-cover w-full h-full"
                     />
                     <button
                       type="button"
                       onClick={() => removeExistingImage(index)}
-                      className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/75 transition-colors"
+                      className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -393,25 +261,24 @@ export default function EditReviewPage({ params }: PageProps) {
                 {newPhotos.map((photo, index) => (
                   <div
                     key={`new-${index}`}
-                    className="relative aspect-square border rounded-lg overflow-hidden"
+                    className="relative group aspect-square rounded-lg overflow-hidden bg-gray-100"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={URL.createObjectURL(photo)}
                       alt={`Upload preview ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="object-cover w-full h-full"
                     />
                     <button
                       type="button"
                       onClick={() => removeNewPhoto(index)}
-                      className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/75 transition-colors"
+                      className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="h-4 w-4" />
                     </button>
                     {uploadProgress[index] !== undefined && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/10">
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
                         <div
-                          className="h-full bg-blue-500 transition-all duration-300"
+                          className="h-full bg-primary transition-all duration-300"
                           style={{ width: `${uploadProgress[index]}%` }}
                         />
                       </div>
@@ -421,52 +288,48 @@ export default function EditReviewPage({ params }: PageProps) {
 
                 {/* Upload Button */}
                 {totalPhotos < 5 && (
-                  <label className="relative aspect-square border-2 border-dashed rounded-lg hover:border-gray-400 transition-colors cursor-pointer">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handlePhotoSelect}
-                      className="sr-only"
-                    />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-                      <Upload className="h-8 w-8 mb-2" />
-                      <span className="text-sm">Add Photo</span>
+                  <div className="relative aspect-square">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg hover:border-gray-400 transition-colors cursor-pointer">
+                      <Upload className="h-8 w-8 text-gray-400" />
+                      <div className="text-sm text-gray-600">
+                        <label className="relative cursor-pointer font-medium text-primary hover:text-primary/80">
+                          <span>Upload files</span>
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handlePhotoChange}
+                          />
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        PNG, JPG up to 5MB each
+                      </p>
                     </div>
-                  </label>
+                  </div>
                 )}
               </div>
-              <p className="text-sm text-gray-500">
-                Supported formats: JPEG, PNG, WebP. Maximum 5 photos.
-              </p>
+
+              {totalPhotos > 0 && (
+                <p className="text-sm text-gray-500">
+                  {totalPhotos} of 5 photos selected
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Comment */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Overall Comment</CardTitle>
-            <CardDescription>
-              Share your overall experience with this builder
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={5}
-              placeholder="Share your experience with this builder..."
-            />
-          </CardContent>
-        </Card>
-
         {error && (
-          <div className="text-red-600 text-sm">{error}</div>
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
         )}
 
         <div className="flex items-center gap-4">
           <Button
-            type="submit"
+            type="button"
+            onClick={() => handleSubmit(review)}
             disabled={isSaving || isDeleting}
             className="flex-1"
           >

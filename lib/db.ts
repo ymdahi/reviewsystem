@@ -1,4 +1,5 @@
 import { createClient } from '@libsql/client';
+import { initializeReviewSchema } from './review-schema';
 
 const client = createClient({
   url: 'file:local.db',
@@ -83,6 +84,9 @@ export async function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Initialize review schema
+  await initializeReviewSchema();
 
   // Create triggers for updating timestamps
   await client.execute(`

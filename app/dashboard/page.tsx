@@ -130,63 +130,72 @@ export default function DashboardPage() {
 
       {/* Admin Cards */}
       {user.role === 'ADMIN' && (
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Builders
-              </CardTitle>
-              <CardDescription>Manage all builders</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold mb-2">{stats.totalBuilders}</div>
-              <Button
-                className="w-full"
-                onClick={() => router.push('/dashboard/admin/builders')}
-              >
-                View Builders
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold">Admin Dashboard</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="hover:bg-accent/50 cursor-pointer" onClick={() => router.push('/dashboard/admin/users')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User2 className="h-5 w-5" />
+                  Users
+                </CardTitle>
+                <CardDescription>
+                  Manage user accounts and roles
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{stats.totalUsers}</p>
+                <p className="text-sm text-muted-foreground">Total registered users</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" />
-                Reviews
-              </CardTitle>
-              <CardDescription>Manage all reviews</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold mb-2">{stats.totalReviews}</div>
-              <Button
-                className="w-full"
-                onClick={() => router.push('/dashboard/admin/reviews')}
-              >
-                View Reviews
-              </Button>
-            </CardContent>
-          </Card>
+            <Card className="hover:bg-accent/50 cursor-pointer" onClick={() => router.push('/dashboard/admin/builders')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Builders
+                </CardTitle>
+                <CardDescription>
+                  Manage builder profiles and verification
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{stats.totalBuilders}</p>
+                <p className="text-sm text-muted-foreground">Total registered builders</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User2 className="h-5 w-5" />
-                Users
-              </CardTitle>
-              <CardDescription>Manage all users</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold mb-2">{stats.totalUsers}</div>
-              <Button
-                className="w-full"
-                onClick={() => router.push('/dashboard/admin/users')}
-              >
-                View Users
-              </Button>
-            </CardContent>
-          </Card>
+            <Card className="hover:bg-accent/50 cursor-pointer" onClick={() => router.push('/dashboard/admin/reviews')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5" />
+                  Reviews
+                </CardTitle>
+                <CardDescription>
+                  Manage and moderate reviews
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{stats.totalReviews}</p>
+                <p className="text-sm text-muted-foreground">Total submitted reviews</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:bg-accent/50 cursor-pointer" onClick={() => router.push('/dashboard/admin/structure/review')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Review Form
+                </CardTitle>
+                <CardDescription>
+                  Customize the review form structure
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Add, remove, or reorder review fields</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
