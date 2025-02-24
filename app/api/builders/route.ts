@@ -21,12 +21,14 @@ export async function GET(request: NextRequest) {
     if (token) {
       try {
         const { payload } = await jwtVerify(token, JWT_SECRET);
-        const userId = payload.userId as string;
-        const userResult = await db.execute({
-          sql: 'SELECT role FROM users WHERE id = ?',
-          args: [userId],
-        });
-        isAdmin = userResult.rows[0]?.role === 'ADMIN';
+        const userId = payload.userId;
+        if (userId) {
+          const userResult = await db.execute({
+            sql: 'SELECT role FROM users WHERE id = ?',
+            args: [userId],
+          });
+          isAdmin = userResult.rows[0]?.role === 'ADMIN';
+        }
       } catch (error) {
         // Token verification failed, continue as non-admin
         console.error('Token verification failed:', error);
