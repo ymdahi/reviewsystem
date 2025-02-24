@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, Star, Users, LayoutDashboard } from 'lucide-react';
+import { Building2, Star, Users, LayoutDashboard, BoxSelect } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
@@ -11,6 +11,21 @@ const menuItems = [
     name: 'Dashboard',
     href: '/admin',
     icon: LayoutDashboard,
+  },
+  {
+    name: 'Structure',
+    href: '/admin/structure',
+    icon: BoxSelect,
+    submenu: [
+      {
+        name: 'Entities',
+        href: '/admin/structure/entities',
+      },
+      {
+        name: 'Forms',
+        href: '/admin/structure/forms',
+      },
+    ],
   },
   {
     name: 'Builders',
@@ -79,17 +94,34 @@ export default function AdminLayout({
       <aside className="w-64 bg-gray-900 text-white p-6">
         <nav className="space-y-2">
           {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-800 transition-colors',
-                pathname === item.href && 'bg-gray-800'
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                className={cn(
+                  'flex items-center space-x-2 px-4 py-2 rounded hover:bg-gray-800 transition-colors',
+                  pathname === item.href && 'bg-gray-800'
+                )}
+              >
+                <item.icon className="w-5 h-5" />
+                <span>{item.name}</span>
+              </Link>
+              {item.submenu && (
+                <div className="ml-6 mt-1 space-y-1">
+                  {item.submenu.map((subitem) => (
+                    <Link
+                      key={subitem.href}
+                      href={subitem.href}
+                      className={cn(
+                        'flex items-center space-x-2 px-4 py-1.5 rounded hover:bg-gray-800 transition-colors text-sm',
+                        pathname === subitem.href && 'bg-gray-800'
+                      )}
+                    >
+                      <span>{subitem.name}</span>
+                    </Link>
+                  ))}
+                </div>
               )}
-            >
-              <item.icon className="w-5 h-5" />
-              <span>{item.name}</span>
-            </Link>
+            </div>
           ))}
         </nav>
       </aside>
