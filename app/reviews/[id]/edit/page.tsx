@@ -70,9 +70,18 @@ export default function EditReviewPage({ params }: PageProps) {
     async function fetchReview() {
       try {
         const response = await fetch(`/api/reviews/${params.id}`);
+        if (response.status === 401) {
+          router.push('/auth/login');
+          return;
+        }
+        if (response.status === 403) {
+          router.push('/dashboard');
+          return;
+        }
         if (!response.ok) {
           throw new Error('Failed to fetch review');
         }
+
         const data = await response.json();
         console.log('Fetched review data:', data);
         

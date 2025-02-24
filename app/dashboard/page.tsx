@@ -18,6 +18,7 @@ interface User {
 
 interface Review {
   id: string;
+  user_id: string;
   build_quality: number;
   material_quality: number;
   bathrooms: number;
