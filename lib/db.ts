@@ -84,6 +84,30 @@ export async function initializeDatabase() {
     )
   `);
 
+  // Create entities table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS entities (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      fields JSON NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create entity_records table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS entity_records (
+      id TEXT PRIMARY KEY,
+      entity_id TEXT NOT NULL,
+      data JSON NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (entity_id) REFERENCES entities(id)
+    )
+  `);
+
   // Create triggers for updating timestamps
   await client.execute(`
     CREATE TRIGGER IF NOT EXISTS update_user_timestamp 
@@ -249,6 +273,23 @@ export interface Image {
   builder_id: string | null;
   url: string;
   created_at: string;
+}
+
+export interface Entity {
+  id: string;
+  name: string;
+  description?: string;
+  fields: any[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EntityRecord {
+  id: string;
+  entity_id: string;
+  data: Record<string, any>;
+  created_at: string;
+  updated_at: string;
 }
 
 export { client as db };

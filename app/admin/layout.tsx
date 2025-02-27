@@ -18,8 +18,8 @@ const menuItems = [
     icon: BoxSelect,
     submenu: [
       {
-        name: 'Entities',
-        href: '/admin/structure/entities',
+        name: 'Content Types',
+        href: '/admin/structure/content-types',
       },
       {
         name: 'Forms',
