@@ -12,7 +12,7 @@ export default function NewContentTypePage() {
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">New Content Type</h1>
       <p className="text-gray-600 mb-8">
-        Create a new content type to define the structure of your content.
+        Create a new content type to define the structure of your content. A live preview will be shown on the right.
       </p>
 
       <EntityForm 

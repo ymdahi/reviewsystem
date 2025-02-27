@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card"
 import { GripVertical, Trash} from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { EntityPreview } from "./entity-preview"
 
 const fieldTypes: { label: string; value: FieldType }[] = [
   { label: "Text", value: "text" },
@@ -60,7 +61,7 @@ export function EntityForm({ initialData, onSubmit }: EntityFormProps) {
     },
   })
 
-  const fields = form.watch("fields") || []
+  const { name, description, fields } = form.watch()
 
   const addField = () => {
     const currentFields = form.getValues("fields") || []
@@ -81,131 +82,141 @@ export function EntityForm({ initialData, onSubmit }: EntityFormProps) {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Content Type Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormDescription>
-                A unique name for your content type
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <div className="grid grid-cols-2 gap-8">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Content Type Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormDescription>
+                  A unique name for your content type
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea {...field} />
-              </FormControl>
-              <FormDescription>
-                Optional description of the content type's purpose
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea {...field} />
+                </FormControl>
+                <FormDescription>
+                  Optional description of the content type's purpose
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Fields</h3>
-            <Button type="button" onClick={addField} variant="outline">
-              Add Field
-            </Button>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Fields</h3>
+              <Button type="button" onClick={addField} variant="outline">
+                Add Field
+              </Button>
+            </div>
+
+            {fields.map((field, index) => (
+              <Card key={index} className="p-4">
+                <div className="flex items-center space-x-4">
+                  <GripVertical className="h-5 w-5 text-gray-500" />
+                  <div className="flex-1 grid gap-4 grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name={`fields.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Field Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`fields.${index}.type`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {fieldTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`fields.${index}.required`}
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2">
+                          <FormLabel>Required</FormLabel>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeField(index)}
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
 
-          {fields.map((field, index) => (
-            <Card key={index} className="p-4">
-              <div className="flex items-center space-x-4">
-                <GripVertical className="h-5 w-5 text-gray-500" />
-                <div className="flex-1 grid gap-4 grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name={`fields.${index}.name`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Field Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+          <Button type="submit">
+            {initialData ? "Update Content Type" : "Create Content Type"}
+          </Button>
+        </form>
+      </Form>
 
-                  <FormField
-                    control={form.control}
-                    name={`fields.${index}.type`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {fieldTypes.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name={`fields.${index}.required`}
-                    render={({ field }) => (
-                      <FormItem className="flex items-center space-x-2">
-                        <FormLabel>Required</FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeField(index)}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        <Button type="submit">
-          {initialData ? "Update Content Type" : "Create Content Type"}
-        </Button>
-      </form>
-    </Form>
+      <div className="sticky top-6">
+        <EntityPreview
+          name={name}
+          description={description}
+          fields={fields}
+        />
+      </div>
+    </div>
   )
 }
