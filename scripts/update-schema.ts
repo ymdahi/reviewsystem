@@ -30,6 +30,36 @@ async function updateSchema() {
     `);
     console.log('Created entity_records table');
 
+    // Drop and recreate forms table to fix schema
+    await db.execute(`DROP TABLE IF EXISTS forms`);
+    await db.execute(`DROP TABLE IF EXISTS form_submissions`);
+
+    // Create forms table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS forms (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        fields JSON NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Created forms table');
+
+    // Create form_submissions table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS form_submissions (
+        id TEXT PRIMARY KEY,
+        form_id TEXT NOT NULL,
+        data JSON NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (form_id) REFERENCES forms(id)
+      )
+    `);
+    console.log('Created form_submissions table');
+
     // Create update trigger for entities
     await db.execute(`
       CREATE TRIGGER IF NOT EXISTS update_entity_timestamp 
@@ -52,20 +82,42 @@ async function updateSchema() {
     `);
     console.log('Created entity_records update trigger');
 
-    console.log('Schema update completed successfully');
+    // Create update trigger for forms
+    await db.execute(`
+      CREATE TRIGGER IF NOT EXISTS update_forms_timestamp 
+      AFTER UPDATE ON forms
+      BEGIN
+        UPDATE forms SET updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+    `);
+    console.log('Created forms update trigger');
+
+    // Create update trigger for form_submissions
+    await db.execute(`
+      CREATE TRIGGER IF NOT EXISTS update_form_submissions_timestamp 
+      AFTER UPDATE ON form_submissions
+      BEGIN
+        UPDATE form_submissions SET updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+    `);
+    console.log('Created form_submissions update trigger');
+
+    console.log('All updates completed successfully');
   } catch (error) {
     console.error('Error updating schema:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
 // Run the update
 updateSchema()
   .then(() => {
-    console.log('Update completed successfully');
+    console.log('Schema update completed successfully');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Update failed:', error);
+    console.error('Failed to update schema:', error);
     process.exit(1);
   });

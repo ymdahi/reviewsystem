@@ -108,6 +108,30 @@ export async function initializeDatabase() {
     )
   `);
 
+  // Create forms table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS forms (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      fields JSON NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create form_submissions table
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS form_submissions (
+      id TEXT PRIMARY KEY,
+      form_id TEXT NOT NULL,
+      data JSON NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (form_id) REFERENCES forms(id)
+    )
+  `);
+
   // Create triggers for updating timestamps
   await client.execute(`
     CREATE TRIGGER IF NOT EXISTS update_user_timestamp 
@@ -143,6 +167,24 @@ export async function initializeDatabase() {
       UPDATE responses SET updated_at = CURRENT_TIMESTAMP
       WHERE id = NEW.id;
     END
+  `);
+
+  await client.execute(`
+    CREATE TRIGGER IF NOT EXISTS update_forms_timestamp 
+    AFTER UPDATE ON forms
+    BEGIN
+      UPDATE forms SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
+  `);
+
+  await client.execute(`
+    CREATE TRIGGER IF NOT EXISTS update_form_submissions_timestamp 
+    AFTER UPDATE ON form_submissions
+    BEGIN
+      UPDATE form_submissions SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
   `);
 
   // Create triggers for updating builder ratings
@@ -287,6 +329,23 @@ export interface Entity {
 export interface EntityRecord {
   id: string;
   entity_id: string;
+  data: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Form {
+  id: string;
+  title: string;
+  description?: string;
+  fields: any[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FormSubmission {
+  id: string;
+  form_id: string;
   data: Record<string, any>;
   created_at: string;
   updated_at: string;
